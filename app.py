@@ -7,7 +7,7 @@ st.set_page_config(page_title="Telco Churn Dashboard", layout="wide")
 st.title("Telco Customer Churn Dashboard")
 
 df = pd.read_csv("telco_clean.csv")
-
+order = ["0-1y", "1-2y", "2-4y", "4-6y"]
 st.sidebar.header("Filters")
 contract_sel = st.sidebar.multiselect(
     "Contract",
@@ -16,8 +16,8 @@ contract_sel = st.sidebar.multiselect(
 )
 tenure_sel = st.sidebar.multiselect(
     "Tenure Group",
-    options=df["tenure_group"].dropna().unique(),
-    default=df["tenure_group"].dropna().unique(),
+    options=[o for o in order if o in df["tenure_group"].dropna().unique()],
+    default=[o for o in order if o in df["tenure_group"].dropna().unique()],
 )
 internet_sel = st.sidebar.multiselect(
     "Internet Service",
@@ -50,7 +50,14 @@ with col_a:
 
 with col_b:
     fig2, ax2 = plt.subplots(figsize=(6, 4))
-    sns.countplot(data=filtered_df, x="tenure_group", hue="Churn", ax=ax2)
+
+    sns.countplot(
+        data=filtered_df,
+        x="tenure_group",
+        hue="Churn",
+        ax=ax2,
+        order=order,
+    )
     ax2.set_title("Churn by Tenure Group")
     st.pyplot(fig2) 
 
@@ -67,6 +74,37 @@ with col_d:
     sns.boxplot(data=filtered_df, x="Churn", y="MonthlyCharges", ax=ax4)
     ax4.set_title("Monthly Charges by Churn")
     st.pyplot(fig4)
+    st.subheader("أهم 3 اكتشافات")
+
+
+def rate(d):
+  return round((d["Churn"] == "Yes").mean() * 100, 1) if len(d) else 0
+
+
+st.write(f"- **معدل الفقد العام للبيانات المفلترة:** {rate(filtered_df)}%")
+
+if "Contract" in filtered_df.columns and len(filtered_df) > 0:
+  contract_rates = {
+      c: rate(filtered_df[filtered_df["Contract"] == c])
+      for c in filtered_df["Contract"].dropna().unique()
+  }
+  top_contract = max(contract_rates, key=contract_rates.get)
+  st.write(
+      f"- **أعلى فئة عقد فقداً:** {top_contract} ({contract_rates[top_contract]}%)"
+  )
+
+if "tenure_group" in filtered_df.columns and len(filtered_df) > 0:
+  tenure_rates = {
+      t: rate(filtered_df[filtered_df["tenure_group"] == t])
+      for t in filtered_df["tenure_group"].dropna().unique()
+  }
+  top_tenure = max(tenure_rates, key=tenure_rates.get)
+  st.write(
+      f"- **أكثر فترة اشتراك فقداً:** {top_tenure} ({tenure_rates[top_tenure]}%)"
+  )
+
+
+
 
 st.divider()
 st.subheader("Filtered Data Preview")
